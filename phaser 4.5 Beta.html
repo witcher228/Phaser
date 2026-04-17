@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Minecraft 2D - Light & Torches</title>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-user-select: none; user-select: none; }
+        canvas { display: block; image-rendering: pixelated; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        .top-ui { position: absolute; top: 15px; left: 15px; display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
+        .btn-group { display: flex; gap: 10px; }
+        .menu-btn { background: rgba(30,30,30,0.9); color: #fff; padding: 10px 18px; border: 2px solid #555; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; letter-spacing: 1px; }
+        #current-item-display { background: rgba(0,0,0,0.6); color: #fff; padding: 6px 12px; border-radius: 4px; font-size: 12px; border-left: 4px solid #4a90e2; width: fit-content; margin-top: 5px; }
+        .bars-container { position: absolute; top: 15px; right: 15px; display: flex; flex-direction: column; gap: 5px; }
+        .bar { width: 160px; height: 14px; background: #222; border: 2px solid #eee; border-radius: 10px; overflow: hidden; }
+        #hp-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #ff4b2b, #ff416c); transition: width 0.3s; }
+        #hunger-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #f2994a, #f2c94c); transition: width 0.3s; }
+        .menu-window { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(25,25,25,0.95); border: 4px solid #444; border-radius: 8px; padding: 20px; pointer-events: auto; z-index: 100; color: white; width: 320px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .inv-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-height: 250px; overflow-y: auto; padding-right: 5px; }
+        .inv-slot { width: 65px; height: 65px; border: 2px solid #444; background: #1a1a1a; display: flex; align-items: center; justify-content: center; position: relative; border-radius: 4px; transition: 0.2s; }
+        .inv-slot.selected { border-color: #4a90e2; background: #2c2c2c; box-shadow: inset 0 0 10px rgba(74,144,226,0.3); }
+        .inv-count { position: absolute; bottom: 2px; right: 5px; font-size: 12px; color: #fff; font-weight: bold; text-shadow: 1px 1px #000; }
+        .craft-item { display: flex; align-items: center; background: #222; margin-bottom: 6px; padding: 8px; border: 1px solid #333; border-radius: 6px; cursor: pointer; }
+        .craft-info { margin-left: 10px; font-size: 12px; flex-grow: 1; }
+        .game-controls-container { position: absolute; bottom: 30px; width: 100%; pointer-events: none; }
+        .controls { display: flex; justify-content: space-between; padding: 0 30px; }
+        .btn { width: 70px; height: 70px; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; pointer-events: auto; }
+        svg { width: 35px; height: 35px; fill: white; opacity: 0.8; }
+    </style>
+</head>
+<body>
+
+<div id="ui-layer">
+    <div class="top-ui">
+        <div class="btn-group">
+            <div class="menu-btn" onclick="toggleMenu('inventory-menu')">РЮКЗАК</div>
+            <div class="menu-btn" onclick="toggleMenu('craft-menu')">КРАФТ</div>
+            <div class="menu-btn" onclick="toggleMenu('cook-menu')">КУХНЯ</div>
+        </div>
+        <div id="current-item-display">В руках: Кулаки</div>
+    </div>
+    <div class="bars-container">
+        <div class="bar"><div id="hp-fill"></div></div>
+        <div class="bar"><div id="hunger-fill"></div></div>
+    </div>
+    <div id="inventory-menu" class="menu-window"><div class="inv-grid" id="inv-grid"></div><button onclick="toggleMenu('inventory-menu')" style="width:100%; margin-top:15px; padding:10px; cursor:pointer; background:#444; color:white; border:none; border-radius:4px;">ЗАКРЫТЬ</button></div>
+    <div id="craft-menu" class="menu-window"><div id="craft-container" style="max-height: 280px; overflow-y: auto;"></div><button onclick="toggleMenu('craft-menu')" style="width:100%; margin-top:15px; padding:10px; cursor:pointer; background:#444; color:white; border:none; border-radius:4px;">ЗАКРЫТЬ</button></div>
+    <div id="cook-menu" class="menu-window"><div id="cook-container" style="max-height: 280px; overflow-y: auto;"></div><button onclick="toggleMenu('cook-menu')" style="width:100%; margin-top:15px; padding:10px; cursor:pointer; background:#444; color:white; border:none; border-radius:4px;">ЗАКРЫТЬ</button></div>
+    <div class="game-controls-container"><div class="controls"><div style="display:flex; gap:20px;"><div class="btn" id="bL"><svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></div><div class="btn" id="bR"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div></div><div class="btn" id="bJ"><svg viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg></div></div></div>
+</div>
+<canvas id="game"></canvas>
+
+<script>
+    const cvs = document.getElementById('game'), ctx = cvs.getContext('2d');
+    const TILE = 40, GRAVITY = 0.6;
+    
+    let inv = { 1:0, 2:0, 3:0, 4:10, 6:0, 7:0, 13:0, 14:0, 15:0, 16:0, 17:0, 50:0, 51:0, 100:0, axe:0, pick:0, sword:0, spade:0 }; 
+    let selected = 'hand'; 
+    let player = { x: 400, y: 0, vx: 0, vy: 0, w: 26, h: 54, hp: 100, hunger: 100, onG: false, faceL: false, anim: 0, mineMult: 1, spadeMult: 1, axeMult: 1, damage: 5 };
+    let world = {}, zombies = [], animals = [], particles = [], camera = { x: 400, y: 0 }, time = 0, tex = {}, keys = {};
+    let miningBlock = null, isMouseDown = false, lastMousePos = {x:0, y:0};
+
+    const mats = [
+        { id: 'none', n: '', color: '' },
+        { id: 'wood', m: 3, s: 2, a: 4, d: 15, name: 'Дерево', cId: 7, color: '#8d6e63' },
+        { id: 'copper', m: 5, s: 4, a: 5, d: 30, name: 'Медь', cId: 13, color: '#d35400' },
+        { id: 'iron', m: 8, s: 6, a: 8, d: 45, name: 'Железо', cId: 14, color: '#95a5a6' },
+        { id: 'diamond', m: 15, s: 12, a: 15, d: 75, name: 'Алмаз', cId: 15, color: '#33d9ff' },
+        { id: 'obsidian', m: 35, s: 25, a: 35, d: 130, name: 'Обсидиан', cId: 16, color: '#2e0854' }
+    ];
+
+    function spawnPart(x, y, color, count = 5) {
+        for(let i=0; i<count; i++) particles.push({ x, y, vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4, c: color, s: Math.random()*3+2, l: 30 });
+        if(particles.length > 100) particles.splice(0, particles.length - 100);
+    }
+
+    function genTex() {
+        const off = document.createElement('canvas'); const o = off.getContext('2d'); off.width = off.height = TILE;
+        const noise = (c, opacity=0.15) => { o.fillStyle = c; o.fillRect(0,0,TILE,TILE); for(let i=0;i<40;i++) { o.fillStyle = `rgba(0,0,0,${Math.random()*opacity})`; o.fillRect(Math.random()*TILE,Math.random()*TILE,2,2); } };
+        noise('#5d4037'); o.fillStyle='#388e3c'; o.fillRect(0,0,TILE,8); tex[1] = data(off);
+        noise('#6d4c41'); tex[2] = data(off);
+        noise('#546e7a'); tex[3] = data(off);
+        noise('#5d4037'); o.fillStyle='rgba(0,0,0,0.2)'; o.fillRect(5,0,TILE-10,TILE); tex[4] = data(off);
+        noise('#2e7d32', 0.2); tex[6] = data(off);
+        noise('#a1887f'); o.strokeStyle='rgba(0,0,0,0.1)'; o.strokeRect(1,1,TILE-2,TILE-2); tex[7] = data(off);
+        noise('#757575'); o.fillStyle='#e67e22'; for(let i=0;i<4;i++) o.fillRect(Math.random()*25,Math.random()*25,6,6); tex[13] = data(off);
+        noise('#757575'); o.fillStyle='#ecf0f1'; for(let i=0;i<4;i++) o.fillRect(Math.random()*25,Math.random()*25,6,6); tex[14] = data(off);
+        noise('#455a64'); o.fillStyle='#00e5ff'; for(let i=0;i<5;i++) o.fillRect(Math.random()*25,Math.random()*25,5,5); tex[15] = data(off);
+        noise('#1a0a2e'); o.fillStyle='#4b0082'; for(let i=0;i<8;i++) o.fillRect(Math.random()*25,Math.random()*25,4,4); tex[16] = data(off);
+        noise('#757575'); o.fillStyle='#222'; for(let i=0;i<6;i++) o.fillRect(Math.random()*25,Math.random()*25,5,5); tex[17] = data(off);
+        o.clearRect(0,0,TILE,TILE); o.fillStyle='#ff8a80'; o.fillRect(8,12,24,16); tex[50] = data(off);
+        o.clearRect(0,0,TILE,TILE); o.fillStyle='#8d6e63'; o.fillRect(8,12,24,16); tex[51] = data(off);
+        // ФАКЕЛ
+        o.clearRect(0,0,TILE,TILE); o.fillStyle='#8d6e63'; o.fillRect(18,15,4,20); o.fillStyle='#ff9800'; o.fillRect(16,8,8,8); tex[100] = data(off);
+
+        mats.forEach((m, idx) => {
+            if(idx === 0) return;
+            ['pick', 'sword', 'spade', 'axe'].forEach(type => {
+                o.clearRect(0,0,TILE,TILE); o.fillStyle = '#5d4037'; o.fillRect(18,14,4,22); o.fillStyle = m.color;
+                if(type === 'pick') { o.fillRect(10,10,20,6); o.fillRect(8,12,4,4); o.fillRect(28,12,4,4); }
+                if(type === 'sword') { o.fillRect(16,4,8,16); o.fillStyle='#7f8c8d'; o.fillRect(12,20,16,3); }
+                if(type === 'spade') { o.fillRect(14,8,12,12); }
+                if(type === 'axe') { o.fillRect(14,8,10,10); o.fillRect(24,10,4,6); }
+                tex[m.id + '_' + type] = data(off);
+            });
+        });
+    }
+
+    function data(c) { let i = new Image(); i.src = c.toDataURL(); return i; }
+
+    function toggleMenu(id) {
+        let m = document.getElementById(id); let wasOpen = m.style.display === 'block';
+        document.querySelectorAll('.menu-window').forEach(w => w.style.display = 'none');
+        if(!wasOpen) { m.style.display = 'block'; if(id === 'inventory-menu') updateInvUI(); else if(id === 'craft-menu') updateCraftUI(); else if(id === 'cook-menu') updateCookUI(); }
+    }
+
+    function updateInvUI() {
+        const grid = document.getElementById('inv-grid'); grid.innerHTML = '';
+        const cats = ['hand', 'pick', 'axe', 'sword', 'spade', 1, 2, 3, 4, 6, 7, 100, 17, 13, 14, 15, 16, 50, 51];
+        cats.forEach(id => {
+            let count = (typeof id === 'number') ? (inv[id] || 0) : (inv[id] || 0);
+            if (id !== 'hand' && count <= 0) return;
+            let slot = document.createElement('div'); slot.className = `inv-slot ${selected === id ? 'selected' : ''}`;
+            if (id === 'hand') slot.innerHTML = '✋'; 
+            else if (typeof id === 'string') { let img = new Image(); img.src = tex[mats[count].id + '_' + id].src; img.style.width="48px"; slot.appendChild(img); }
+            else { let img = new Image(); img.src = tex[id].src; img.style.width="45px"; slot.appendChild(img); slot.innerHTML += `<div class="inv-count">${count}</div>`; }
+            slot.onclick = () => { selected = id; updateInvUI(); updateCurrentItemName(); };
+            grid.appendChild(slot);
+        });
+    }
+
+    function updateCraftUI() {
+        const cont = document.getElementById('craft-container'); cont.innerHTML = '';
+        const recipes = [
+            { t: "Материалы", items: [{ n: "Доски (x4)", cost: {4: 1}, give: {7: 4}, ico: tex[7].src }, { n: "Факел (x4)", cost: {17: 1, 7: 1}, give: {100: 4}, ico: tex[100].src }] },
+            { t: "Кирки", type: 'pick' }, { t: "Мечи", type: 'sword' }, { t: "Топоры", type: 'axe' }, { t: "Лопаты", type: 'spade' }
+        ];
+        recipes.forEach(cat => {
+            let row = document.createElement('div'); row.innerHTML = `<div style="color:#666;font-size:10px;margin:12px 0 6px 0;font-weight:bold">${cat.t}</div>`;
+            let list = cat.items || mats.slice(1).map((m, idx) => ({ n: m.name + " " + cat.t.slice(0,-1), cost: {[m.cId]: 3, 7: 2}, type: cat.type, matIdx: idx + 1, ico: tex[m.id + '_' + cat.type].src }));
+            list.forEach(r => {
+                let can = true; for(let [id, n] of Object.entries(r.cost)) if((inv[id]||0) < n) can = false;
+                if(r.type && inv[r.type] >= r.matIdx) can = false;
+                let div = document.createElement('div'); div.className = 'craft-item'; div.style.opacity = can ? '1' : '0.3';
+                div.innerHTML = `<img src="${r.ico}" width="32"> <div class="craft-info"><b>${r.n}</b></div>`;
+                div.onclick = () => { if(!can) return; for(let [id, n] of Object.entries(r.cost)) inv[id] -= n; if(r.give) for(let [id, n] of Object.entries(r.give)) inv[id] = (inv[id]||0) + n; if(r.type) { inv[r.type] = r.matIdx; let m = mats[r.matIdx]; if(r.type==='pick') player.mineMult=m.m; if(r.type==='sword') player.damage=m.d; if(r.type==='spade') player.spadeMult=m.s; if(r.type==='axe') player.axeMult=m.a; } updateCraftUI(); updateCurrentItemName(); };
+                row.appendChild(div);
+            });
+            cont.appendChild(row);
+        });
+    }
+
+    function updateCookUI() {
+        const cont = document.getElementById('cook-container'); cont.innerHTML = '';
+        let can = (inv[50] > 0 && inv[17] > 0);
+        let div = document.createElement('div'); div.className = 'craft-item'; div.style.opacity = can ? '1' : '0.3';
+        div.innerHTML = `<img src="${tex[51].src}" width="32"> <div class="craft-info"><b>Жареное мясо</b></div>`;
+        div.onclick = () => { if(!can) return; inv[50]--; inv[17]--; inv[51]++; updateCookUI(); updateInvUI(); };
+        cont.appendChild(div);
+    }
+
+    function updateCurrentItemName() {
+        let n = "Кулаки"; if (typeof selected === 'string' && inv[selected] > 0) n = mats[inv[selected]].name + " " + {pick:'Кирка', axe:'Топор', sword:'Меч', spade:'Лопата'}[selected]; else if (typeof selected === 'number') n = getBlockName(selected);
+        document.getElementById('current-item-display').innerText = "В руках: " + n;
+    }
+
+    function getBlockName(id) { return {1:'Трава', 2:'Земля', 3:'Камень', 4:'Дерево', 6:'Листва', 7:'Доски', 13:'Медь', 14:'Железо', 15:'Алмаз', 16:'Обсидиан', 17:'Уголь', 50:'Сырое мясо', 51:'Жареное мясо', 100:'Факел'}[id] || 'Блок'; }
+
+    function drawModel(p, type = 'zombie') {
+        ctx.save(); ctx.translate(Math.round(p.x), Math.round(p.y)); if(p.faceL) { ctx.scale(-1, 1); ctx.translate(-p.w, 0); }
+        const s = 2, a = Math.sin(p.anim) * 6;
+        if (type === 'pig') { ctx.fillStyle = '#ff8a80'; ctx.fillRect(0, 10, 30, 15); ctx.fillRect(25, 5, 10, 10); ctx.fillStyle = '#000'; ctx.fillRect(32, 7, 2, 2); ctx.fillStyle = '#d32f2f'; ctx.fillRect(2, 25+a/2, 5, 8); ctx.fillRect(23, 25-a/2, 5, 8); }
+        else {
+            const isZ = type === 'zombie'; ctx.fillStyle = isZ ? '#1a2e13' : '#3d2b1f'; ctx.fillRect(5*s, -1*s, 8*s, 3*s); ctx.fillStyle = isZ ? '#4a7c38' : '#ffdbac'; ctx.fillRect(5*s, 1*s, 8*s, 7*s); ctx.fillStyle = '#fff'; ctx.fillRect(6.5*s, 3*s, 2*s, 1.5*s); ctx.fillRect(10*s, 3*s, 2*s, 1.5*s); ctx.fillStyle = isZ ? '#000' : '#4682b4'; ctx.fillRect(7.5*s, 3*s, 1*s, 1.5*s); ctx.fillRect(11*s, 3*s, 1*s, 1.5*s);
+            const drawArm = (ax, ay, animOff, tool) => { ctx.fillStyle = isZ ? '#3a5f2c' : '#00bcd4'; ctx.fillRect(ax, ay + animOff, 3*s, 5*s); ctx.fillStyle = isZ ? '#4a7c38' : '#ffdbac'; ctx.fillRect(ax, ay + 5*s + animOff, 3*s, 4*s); if(tool && typeof selected === 'string' && inv[selected] > 0) { ctx.save(); ctx.translate(ax, ay+8+animOff); ctx.rotate(miningBlock ? Math.sin(time*0.5)*0.6 : 0.3); let img = tex[mats[inv[selected]].id + '_' + selected]; if(img) ctx.drawImage(img, -12, -12, 28, 28); ctx.restore(); } };
+            drawArm(2*s, 8*s, a, false); drawArm(13*s, 8*s, -a, type === 'player'); ctx.fillStyle = isZ ? '#2e4d23' : '#00bcd4'; ctx.fillRect(5*s, 8*s, 8*s, 10*s); ctx.fillStyle = isZ ? '#1a2e13' : '#303f9f'; ctx.fillRect(5*s, 18*s, 4*s, 9*s+a); ctx.fillRect(9*s, 18*s, 4*s, 9*s-a);
+        }
+        ctx.restore();
+    }
+
+    function move(obj) {
+        obj.vy += GRAVITY; let nX = obj.x + (obj.vx || 0), nY = obj.y + obj.vy;
+        const isSolid = (x, y) => { let b = world[Math.floor(x/TILE)+','+Math.floor(y/TILE)]; return b && b !== 4 && b !== 6 && b !== 100; };
+        if(!isSolid(nX+(obj.vx>0?obj.w:0), obj.y+5) && !isSolid(nX+(obj.vx>0?obj.w:0), obj.y+obj.h-5)) obj.x = nX; else obj.vx = (obj.vx || 0) * -1;
+        if(obj.vy > 0) { if(isSolid(obj.x+5, nY+obj.h) || isSolid(obj.x+obj.w-5, nY+obj.h)) { obj.y = Math.floor((nY+obj.h)/TILE)*TILE-obj.h; obj.vy = 0; obj.onG = true; } else { obj.y = nY; obj.onG = false; }
+        } else { if(isSolid(obj.x+5, nY) || isSolid(obj.x+obj.w-5, nY)) { obj.vy = 0; obj.y = Math.floor(nY/TILE+1)*TILE; } else obj.y = nY; }
+    }
+
+    function getBlockColor(id) { return {1:'#388e3c', 2:'#6d4c41', 3:'#546e7a', 4:'#5d4037', 6:'#2e7d32', 7:'#a1887f', 17:'#222', 13:'#e67e22', 14:'#ecf0f1', 15:'#00e5ff', 16:'#4b0082', 100:'#ff9800'}[id] || '#fff'; }
+
+    // НОВАЯ ФУНКЦИЯ СВЕТА
+    function getLightLevel(gx, gy) {
+        // Проверка неба
+        let hasSky = true;
+        for(let y = gy - 1; y > gy - 20; y--) {
+            let b = world[gx+','+y]; if(b && b !== 6 && b !== 100) { hasSky = false; break; }
+        }
+        if(hasSky) return 1;
+        // Проверка факелов рядом
+        for(let ox=-2; ox<=2; ox++) {
+            for(let oy=-2; oy<=2; oy++) {
+                if(world[(gx+ox)+','+(gy+oy)] === 100) return 1;
+            }
+        }
+        return 0.15; // Тьма
+    }
+
+    function loop() {
+        time += 2; player.vx = keys['A'] ? -4 : (keys['D'] ? 4 : 0);
+        if(player.vx !== 0) { player.faceL = player.vx < 0; player.anim += 0.25; } else player.anim = 0;
+        if(keys['W'] && player.onG) { player.vy = -12; player.onG = false; }
+        move(player); player.hunger -= 0.005; if (player.hunger <= 0) { player.hunger = 0; player.hp -= 0.05; spawnPart(player.x+13, player.y+27, '#f00', 1); }
+        
+        const dp = (Math.sin(time/500) + 1) / 2; const sb = 0.2 + (dp * 0.6);
+        
+        zombies.forEach((z, i) => { 
+            z.vx = (z.x < player.x ? 1.5 : -1.5); z.anim += 0.1;
+            const isS = (x, y) => { let b = world[Math.floor(x/TILE)+','+Math.floor(y/TILE)]; return b && b !== 4 && b !== 6 && b !== 100; };
+            let cx = z.vx > 0 ? z.x + z.w + 10 : z.x - 10;
+            if (z.onG && isS(cx, z.y+z.h-5) && !isS(cx, z.y+5) && !isS(cx, z.y-20)) { z.vy = -8.5; z.onG = false; }
+            if (dp > 0.7 && !isS(z.x + z.w/2, z.y - 10)) { z.hp -= 0.2; if (time % 5 === 0) spawnPart(z.x + Math.random()*z.w, z.y + Math.random()*z.h, '#ff6600', 1); }
+            move(z); if(Math.hypot(z.x-player.x, z.y-player.y) < 20) { player.hp -= 0.4; if(time % 10 === 0) spawnPart(player.x+13, player.y+27, '#f00', 2); }
+            if(z.hp <= 0) { spawnPart(z.x+13, z.y+27, '#1a2e13', 10); zombies.splice(i, 1); }
+        });
+
+        animals.forEach(a => { if(Math.random()<0.01) a.vx *= -1; a.faceL = a.vx < 0; a.anim += 0.1; move(a); });
+        if(zombies.length < 5 && Math.random() < 0.01 && (dp < 0.3 || player.y > 1000)) zombies.push({x: player.x + (Math.random()>0.5?500:-500), y: player.y - 100, vx: 0, vy: 0, w: 26, h: 54, hp: 100, anim: 0, onG: false});
+        if(animals.length < 5 && Math.random() < 0.01) animals.push({x: player.x + (Math.random()>0.5?600:-600), y: player.y - 100, vx: 1, vy: 0, w: 35, h: 30, hp: 20, anim: 0, onG: false});
+
+        camera.x += (player.x - camera.x) * 0.1; camera.y += (player.y - camera.y) * 0.1;
+        ctx.fillStyle = `rgb(${80*sb},${120*sb},${200*sb})`; ctx.fillRect(0,0,cvs.width,cvs.height);
+        ctx.save(); ctx.translate(Math.round(-camera.x + cvs.width/2), Math.round(-camera.y + cvs.height/2));
+        
+        for(let k in world) { 
+            let [x,y] = k.split(','); let gx = parseInt(x), gy = parseInt(y);
+            if(Math.abs(gx*TILE-camera.x) < cvs.width/2 + TILE && Math.abs(gy*TILE-camera.y) < cvs.height/2 + TILE) {
+                ctx.drawImage(tex[world[k]], gx*TILE, gy*TILE, TILE, TILE); 
+                // РИСОВАНИЕ ТЕНИ
+                let light = getLightLevel(gx, gy);
+                if(light < 1) { ctx.fillStyle = `rgba(0,0,0,${1 - light})`; ctx.fillRect(gx*TILE, gy*TILE, TILE, TILE); }
+                if (miningBlock && miningBlock.k === k) { ctx.fillStyle = `rgba(0,0,0,${miningBlock.progress * 0.7})`; ctx.fillRect(gx*TILE, gy*TILE, TILE, TILE); }
+            }
+        }
+        for(let i=particles.length-1; i>=0; i--) { let p = particles[i]; p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.l--; if(p.l <= 0) { particles.splice(i, 1); continue; } ctx.fillStyle = p.c; ctx.fillRect(p.x, p.y, p.s, p.s); }
+        drawModel(player, 'player'); zombies.forEach(z => drawModel(z, 'zombie')); animals.forEach(a => drawModel(a, 'pig'));
+        ctx.restore();
+        
+        document.getElementById('hp-fill').style.width = player.hp + '%'; document.getElementById('hunger-fill').style.width = player.hunger + '%';
+        if(player.hp <= 0) { alert("Вы погибли!"); location.reload(); }
+        if (isMouseDown) updateMining(); requestAnimationFrame(loop);
+    }
+
+    function updateMining() {
+        const wx = lastMousePos.x + camera.x - cvs.width/2, wy = lastMousePos.y + camera.y - cvs.height/2;
+        const gx = Math.floor(wx/TILE), gy = Math.floor(wy/TILE), k = gx+','+gy, b = world[k];
+        if (b && Math.hypot(wx-(player.x+13), wy-(player.y+27))/TILE <= 4) {
+            if (!miningBlock || miningBlock.k !== k) miningBlock = { k: k, progress: 0 };
+            let s = 0.03; if(selected === 'pick' && (b==3 || b>=13)) s *= player.mineMult; else if(selected === 'spade' && (b==1 || b==2)) s *= player.spadeMult; else if(selected === 'axe' && b==4) s *= player.axeMult;
+            miningBlock.progress += s; if(time % 6 === 0) spawnPart(wx, wy, getBlockColor(b), 1);
+            if (miningBlock.progress >= 1) { spawnPart(gx*TILE+20, gy*TILE+20, getBlockColor(b), 8); inv[b] = (inv[b]||0) + 1; delete world[k]; miningBlock = null; updateInvUI(); }
+        } else miningBlock = null;
+    }
+
+    window.onpointerdown = e => {
+        if(e.target.closest('.btn') || e.target.closest('.top-ui') || e.target.closest('.menu-window')) return;
+        isMouseDown = true; lastMousePos = {x: e.clientX, y: e.clientY};
+        const wx = lastMousePos.x + camera.x - cvs.width/2, wy = lastMousePos.y + camera.y - cvs.height/2;
+        if (selected === 50 || selected === 51) { let h = selected === 51 ? 30 : 10; player.hunger = Math.min(100, player.hunger + h); player.hp = Math.min(100, player.hp + h/2); inv[selected]--; if (inv[selected] <= 0) selected = 'hand'; updateInvUI(); updateCurrentItemName(); return; }
+        zombies.forEach((z, i) => { if(Math.hypot(wx-z.x, wy-z.y) < 40) { z.hp -= player.damage; spawnPart(z.x+13, z.y+27, '#f00', 5); if(z.hp <= 0) { spawnPart(z.x+13, z.y+27, '#1a2e13', 10); zombies.splice(i, 1); } } });
+        animals.forEach((a, i) => { if(Math.hypot(wx-a.x, wy-a.y) < 40) { a.hp -= player.damage; spawnPart(a.x+17, a.y+15, '#f00', 5); if(a.hp <= 0) { spawnPart(a.x+17, a.y+15, '#ff8a80', 10); inv[50] = (inv[50]||0) + 1; animals.splice(i, 1); updateInvUI(); } } });
+        const gx = Math.floor(wx/TILE), gy = Math.floor(wy/TILE), k = gx+','+gy;
+        if (Math.hypot(wx-(player.x+13), wy-(player.y+27))/TILE <= 4 && !world[k] && typeof selected === 'number' && inv[selected] > 0) { world[k] = selected; inv[selected]--; updateInvUI(); }
+    };
+    window.onpointerup = () => { isMouseDown = false; miningBlock = null; };
+    window.onpointermove = e => { lastMousePos = {x: e.clientX, y: e.clientY}; };
+    const bind = (id, k) => { let e = document.getElementById(id); e.onpointerdown = ev => { ev.preventDefault(); keys[k] = true; }; e.onpointerup = e.onpointerleave = () => keys[k] = false; };
+    bind('bL', 'A'); bind('bR', 'D'); bind('bJ', 'W');
+
+    window.onload = () => {
+        genTex(); cvs.width = window.innerWidth; cvs.height = window.innerHeight;
+        for(let x = -60; x < 100; x++) {
+            let sY = 15 + Math.floor(Math.sin(x*0.1)*3);
+            for(let y = sY; y < 250; y++) {
+                let cave = Math.sin(x * 0.2) + Math.cos(y * 0.2); if (cave > 1.3 && y > sY + 5) continue; 
+                let b = 3; if (y === sY) b = 1; else if (y < sY + 5) b = 2; 
+                else { if (y >= 35 && y < 70 && Math.random() < 0.1) b = 17; else if (y >= 70 && y < 110 && Math.random() < 0.08) b = 13; else if (y >= 110 && y < 150 && Math.random() < 0.06) b = 14; else if (y >= 150 && y < 190 && Math.random() < 0.04) b = 15; else if (y >= 190 && Math.random() < 0.05) b = 16; }
+                world[x+','+y] = b;
+            }
+            if(x % 12 === 0 && x !== 0) { for(let th=1; th<=4; th++) world[x+','+(sY-th)] = 4; for(let lx=-1; lx<=1; lx++) for(let ly=-2; ly<=0; ly++) world[(x+lx)+','+(sY-4+ly)] = 6; }
+        }
+        player.y = (15 + Math.floor(Math.sin(0*0.1)*3)) * TILE - 150; requestAnimationFrame(loop);
+    };
+</script>
+</body>
+</html>
+
