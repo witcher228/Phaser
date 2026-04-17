@@ -3,30 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Minecraft 2D - Light & Torches</title>
+    <title>Minecraft 2D - Epic Update</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-user-select: none; user-select: none; }
         canvas { display: block; image-rendering: pixelated; }
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
         .top-ui { position: absolute; top: 15px; left: 15px; display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
-        .btn-group { display: flex; gap: 10px; }
-        .menu-btn { background: rgba(30,30,30,0.9); color: #fff; padding: 10px 18px; border: 2px solid #555; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; letter-spacing: 1px; }
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; max-width: 320px; }
+        .menu-btn { background: rgba(30,30,30,0.9); color: #fff; padding: 8px 14px; border: 2px solid #555; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; letter-spacing: 1px; }
+        .reset-btn { background: rgba(150, 0, 0, 0.8); border-color: #ff4444; }
         #current-item-display { background: rgba(0,0,0,0.6); color: #fff; padding: 6px 12px; border-radius: 4px; font-size: 12px; border-left: 4px solid #4a90e2; width: fit-content; margin-top: 5px; }
         .bars-container { position: absolute; top: 15px; right: 15px; display: flex; flex-direction: column; gap: 5px; }
-        .bar { width: 160px; height: 14px; background: #222; border: 2px solid #eee; border-radius: 10px; overflow: hidden; }
+        .bar { width: 160px; height: 14px; background: #222; border: 2px solid #eee; border-radius: 10px; overflow: hidden; position: relative; }
         #hp-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #ff4b2b, #ff416c); transition: width 0.3s; }
         #hunger-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #f2994a, #f2c94c); transition: width 0.3s; }
-        .menu-window { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(25,25,25,0.95); border: 4px solid #444; border-radius: 8px; padding: 20px; pointer-events: auto; z-index: 100; color: white; width: 320px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        #armor-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #a8c0ff, #3f2b96); transition: width 0.3s; }
+        .menu-window { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(25,25,25,0.95); border: 4px solid #444; border-radius: 8px; padding: 20px; pointer-events: auto; z-index: 100; color: white; width: 340px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
         .inv-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-height: 250px; overflow-y: auto; padding-right: 5px; }
-        .inv-slot { width: 65px; height: 65px; border: 2px solid #444; background: #1a1a1a; display: flex; align-items: center; justify-content: center; position: relative; border-radius: 4px; transition: 0.2s; }
+        .inv-slot { width: 65px; height: 65px; border: 2px solid #444; background: #1a1a1a; display: flex; align-items: center; justify-content: center; position: relative; border-radius: 4px; transition: 0.2s; cursor: pointer; }
         .inv-slot.selected { border-color: #4a90e2; background: #2c2c2c; box-shadow: inset 0 0 10px rgba(74,144,226,0.3); }
         .inv-count { position: absolute; bottom: 2px; right: 5px; font-size: 12px; color: #fff; font-weight: bold; text-shadow: 1px 1px #000; }
         .craft-item { display: flex; align-items: center; background: #222; margin-bottom: 6px; padding: 8px; border: 1px solid #333; border-radius: 6px; cursor: pointer; }
         .craft-info { margin-left: 10px; font-size: 12px; flex-grow: 1; }
+        .craft-cost { display: block; font-size: 10px; color: #aaa; margin-top: 2px; }
         .game-controls-container { position: absolute; bottom: 30px; width: 100%; pointer-events: none; }
-        .controls { display: flex; justify-content: space-between; padding: 0 30px; }
-        .btn { width: 70px; height: 70px; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; pointer-events: auto; }
+        .controls { display: flex; justify-content: space-between; padding: 0 20px; }
+        .btn { width: 65px; height: 65px; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; pointer-events: auto; user-select: none; }
+        .btn:active { background: rgba(255,255,255,0.3); }
         svg { width: 35px; height: 35px; fill: white; opacity: 0.8; }
+        #save-indicator { position: absolute; top: 15px; right: 190px; color: #aaa; font-size: 12px; font-weight: bold; opacity: 0; transition: opacity 0.5s; }
     </style>
 </head>
 <body>
@@ -36,18 +41,38 @@
         <div class="btn-group">
             <div class="menu-btn" onclick="toggleMenu('inventory-menu')">РЮКЗАК</div>
             <div class="menu-btn" onclick="toggleMenu('craft-menu')">КРАФТ</div>
-            <div class="menu-btn" onclick="toggleMenu('cook-menu')">КУХНЯ</div>
+            <div class="menu-btn" onclick="toggleMenu('cook-menu')">ПЕЧЬ</div>
+            <div class="menu-btn" onclick="toggleMenu('furniture-menu')">СТРОЙКА</div>
+            <div class="menu-btn" onclick="toggleMenu('armor-menu')">БРОНЯ</div>
+            <div class="menu-btn reset-btn" onclick="resetWorld()">СБРОС МИРА</div>
         </div>
         <div id="current-item-display">В руках: Кулаки</div>
     </div>
+    <div id="save-indicator">Сохранено...</div>
     <div class="bars-container">
         <div class="bar"><div id="hp-fill"></div></div>
         <div class="bar"><div id="hunger-fill"></div></div>
+        <div class="bar"><div id="armor-fill"></div></div>
     </div>
+    
     <div id="inventory-menu" class="menu-window"><div class="inv-grid" id="inv-grid"></div><button onclick="toggleMenu('inventory-menu')" style="width:100%; margin-top:15px; padding:10px; cursor:pointer; background:#444; color:white; border:none; border-radius:4px;">ЗАКРЫТЬ</button></div>
     <div id="craft-menu" class="menu-window"><div id="craft-container" style="max-height: 280px; overflow-y: auto;"></div><button onclick="toggleMenu('craft-menu')" style="width:100%; margin-top:15px; padding:10px; cursor:pointer; background:#444; color:white; border:none; border-radius:4px;">ЗАКРЫТЬ</button></div>
     <div id="cook-menu" class="menu-window"><div id="cook-container" style="max-height: 280px; overflow-y: auto;"></div><button onclick="toggleMenu('cook-menu')" style="width:100%; margin-top:15px; padding:10px; cursor:pointer; background:#444; color:white; border:none; border-radius:4px;">ЗАКРЫТЬ</button></div>
-    <div class="game-controls-container"><div class="controls"><div style="display:flex; gap:20px;"><div class="btn" id="bL"><svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></div><div class="btn" id="bR"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div></div><div class="btn" id="bJ"><svg viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg></div></div></div>
+    <div id="furniture-menu" class="menu-window"><div id="furniture-container" style="max-height: 280px; overflow-y: auto;"></div><button onclick="toggleMenu('furniture-menu')" style="width:100%; margin-top:15px; padding:10px; cursor:pointer; background:#444; color:white; border:none; border-radius:4px;">ЗАКРЫТЬ</button></div>
+    <div id="armor-menu" class="menu-window"><div id="armor-container" style="max-height: 280px; overflow-y: auto;"></div><button onclick="toggleMenu('armor-menu')" style="width:100%; margin-top:15px; padding:10px; cursor:pointer; background:#444; color:white; border:none; border-radius:4px;">ЗАКРЫТЬ</button></div>
+
+    <div class="game-controls-container">
+        <div class="controls">
+            <div style="display:flex; gap:15px;">
+                <div class="btn" id="bL"><svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></div>
+                <div class="btn" id="bR"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+            </div>
+            <div style="display:flex; gap:15px;">
+                <div class="btn" id="bAtk" style="background: rgba(255, 100, 100, 0.2); border-color: rgba(255, 100, 100, 0.4);"><svg viewBox="0 0 24 24"><path d="M19.73 4.27a2.006 2.006 0 0 0-2.83 0L15 6.17l2.83 2.83 1.9-1.9c.78-.78.78-2.05 0-2.83zM3 16.86V21h4.14l10.61-10.61-4.14-4.14L3 16.86z"/></svg></div>
+                <div class="btn" id="bJ"><svg viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg></div>
+            </div>
+        </div>
+    </div>
 </div>
 <canvas id="game"></canvas>
 
@@ -55,11 +80,12 @@
     const cvs = document.getElementById('game'), ctx = cvs.getContext('2d');
     const TILE = 40, GRAVITY = 0.6;
     
-    let inv = { 1:0, 2:0, 3:0, 4:10, 6:0, 7:0, 13:0, 14:0, 15:0, 16:0, 17:0, 50:0, 51:0, 100:0, axe:0, pick:0, sword:0, spade:0 }; 
+    let inv = { 1:0, 2:0, 3:0, 4:10, 5:0, 6:0, 7:0, 8:0, 9:0, 13:0, 14:0, 15:0, 16:0, 17:0, 20:0, 21:0, 22:0, 23:0, 30:0, 31:0, 32:0, 33:0, 40:0, 50:0, 51:0, 60:0, 100:0, axe:0, pick:0, sword:0, spade:0, armor_leather:0, armor_iron:0, armor_diamond:0, armor_obsidian:0 }; 
     let selected = 'hand'; 
-    let player = { x: 400, y: 0, vx: 0, vy: 0, w: 26, h: 54, hp: 100, hunger: 100, onG: false, faceL: false, anim: 0, mineMult: 1, spadeMult: 1, axeMult: 1, damage: 5 };
-    let world = {}, zombies = [], animals = [], particles = [], camera = { x: 400, y: 0 }, time = 0, tex = {}, keys = {};
+    let player = { x: 400, y: 0, vx: 0, vy: 0, w: 26, h: 54, hp: 100, hunger: 100, onG: false, faceL: false, anim: 0, mineMult: 1, spadeMult: 1, axeMult: 1, damage: 5, armorDef: 0 };
+    let world = {}, zombies = [], animals = [], skeletons = [], creepers = [], particles = [], camera = { x: 400, y: 0 }, time = 0, tex = {}, keys = {};
     let miningBlock = null, isMouseDown = false, lastMousePos = {x:0, y:0};
+    let doorBreakingCache = {}; 
 
     const mats = [
         { id: 'none', n: '', color: '' },
@@ -70,9 +96,16 @@
         { id: 'obsidian', m: 35, s: 25, a: 35, d: 130, name: 'Обсидиан', cId: 16, color: '#2e0854' }
     ];
 
+    function resetWorld() {
+        if(confirm("ВЫ УВЕРЕНЫ? Весь прогресс, инвентарь и мир будут удалены навсегда!")) {
+            localStorage.removeItem('phaserCraftSave');
+            location.reload();
+        }
+    }
+
     function spawnPart(x, y, color, count = 5) {
         for(let i=0; i<count; i++) particles.push({ x, y, vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4, c: color, s: Math.random()*3+2, l: 30 });
-        if(particles.length > 100) particles.splice(0, particles.length - 100);
+        if(particles.length > 150) particles.splice(0, particles.length - 150);
     }
 
     function genTex() {
@@ -81,18 +114,45 @@
         noise('#5d4037'); o.fillStyle='#388e3c'; o.fillRect(0,0,TILE,8); tex[1] = data(off);
         noise('#6d4c41'); tex[2] = data(off);
         noise('#546e7a'); tex[3] = data(off);
-        noise('#5d4037'); o.fillStyle='rgba(0,0,0,0.2)'; o.fillRect(5,0,TILE-10,TILE); tex[4] = data(off);
+        
+        o.clearRect(0,0,TILE,TILE); 
+        noise('#5d4037', 0.1); // Светлее текстура
+        o.fillStyle='rgba(0,0,0,0.1)'; 
+        o.fillRect(5,0,TILE-10,TILE); 
+        tex[4] = data(off);
+        
+        noise('#eebd71'); tex[5] = data(off);
         noise('#2e7d32', 0.2); tex[6] = data(off);
         noise('#a1887f'); o.strokeStyle='rgba(0,0,0,0.1)'; o.strokeRect(1,1,TILE-2,TILE-2); tex[7] = data(off);
+        
+        o.clearRect(0,0,TILE,TILE); o.fillStyle='rgba(150,200,255,0.3)'; o.fillRect(0,0,TILE,TILE); o.strokeStyle='#96c8ff'; o.lineWidth=2; o.strokeRect(1,1,TILE-2,TILE-2); o.fillStyle='rgba(255,255,255,0.6)'; o.fillRect(4,4,6,6); tex[8] = data(off); 
+        noise('#7f8c8d'); o.strokeStyle='#bdc3c7'; o.lineWidth=1; o.strokeRect(0,0,TILE,TILE/2); o.strokeRect(0,TILE/2,TILE,TILE/2); o.beginPath(); o.moveTo(TILE/2,0); o.lineTo(TILE/2,TILE/2); o.stroke(); tex[9] = data(off); 
+
         noise('#757575'); o.fillStyle='#e67e22'; for(let i=0;i<4;i++) o.fillRect(Math.random()*25,Math.random()*25,6,6); tex[13] = data(off);
         noise('#757575'); o.fillStyle='#ecf0f1'; for(let i=0;i<4;i++) o.fillRect(Math.random()*25,Math.random()*25,6,6); tex[14] = data(off);
         noise('#455a64'); o.fillStyle='#00e5ff'; for(let i=0;i<5;i++) o.fillRect(Math.random()*25,Math.random()*25,5,5); tex[15] = data(off);
         noise('#1a0a2e'); o.fillStyle='#4b0082'; for(let i=0;i<8;i++) o.fillRect(Math.random()*25,Math.random()*25,4,4); tex[16] = data(off);
         noise('#757575'); o.fillStyle='#222'; for(let i=0;i<6;i++) o.fillRect(Math.random()*25,Math.random()*25,5,5); tex[17] = data(off);
+        
+        o.clearRect(0,0,TILE,TILE); o.fillStyle='#8d6e63'; o.fillRect(0,0,TILE,8); o.fillRect(4,8,4,TILE-8); o.fillRect(TILE-8,8,4,TILE-8); tex[20] = data(off);
+        o.clearRect(0,0,TILE,TILE); o.fillStyle='#8d6e63'; o.fillRect(8,16,TILE-16,4); o.fillRect(8,16,4,TILE-16); o.fillRect(TILE-12,16,4,TILE-16); o.fillRect(8,0,4,16); o.fillRect(8,4,TILE-16,12); tex[21] = data(off);
+
+        o.clearRect(0,0,TILE,TILE); o.fillStyle='#5d4037'; o.fillRect(10,0,20,TILE); o.fillStyle='#3e2723'; o.strokeRect(10,0,20,TILE); o.fillStyle='#d35400'; o.fillRect(26,20,2,4); tex[22] = data(off);
+        o.clearRect(0,0,TILE,TILE); o.fillStyle='#bdc3c7'; o.fillRect(10,0,20,TILE); o.fillStyle='#7f8c8d'; o.strokeRect(10,0,20,TILE); o.fillRect(14,4,12,12); o.fillStyle='#000'; o.fillRect(26,20,2,4); tex[23] = data(off);
+
+        const drawTrap = (color) => { o.clearRect(0,0,TILE,TILE); o.fillStyle='#444'; o.fillRect(0,TILE-5,TILE,5); o.fillStyle=color; for(let i=0;i<5;i++) { o.beginPath(); o.moveTo(2+i*8,TILE-5); o.lineTo(6+i*8,TILE-15); o.lineTo(10+i*8,TILE-5); o.fill(); } return data(off); };
+        tex[30] = drawTrap('#e67e22'); tex[31] = drawTrap('#ecf0f1'); tex[32] = drawTrap('#00e5ff'); tex[33] = drawTrap('#4b0082');
+
+        o.clearRect(0,0,TILE,TILE); o.fillStyle='#2e0854'; o.fillRect(0,0,TILE,TILE); o.fillStyle='rgba(150,50,255,0.7)'; o.fillRect(4,4,TILE-8,TILE-8); o.fillStyle='#fff'; for(let i=0;i<5;i++) o.fillRect(Math.random()*TILE,Math.random()*TILE,2,2); tex[40] = data(off);
         o.clearRect(0,0,TILE,TILE); o.fillStyle='#ff8a80'; o.fillRect(8,12,24,16); tex[50] = data(off);
         o.clearRect(0,0,TILE,TILE); o.fillStyle='#8d6e63'; o.fillRect(8,12,24,16); tex[51] = data(off);
-        // ФАКЕЛ
+        o.clearRect(0,0,TILE,TILE); o.fillStyle='#a0522d'; o.fillRect(6,6,28,28); tex[60] = data(off); 
         o.clearRect(0,0,TILE,TILE); o.fillStyle='#8d6e63'; o.fillRect(18,15,4,20); o.fillStyle='#ff9800'; o.fillRect(16,8,8,8); tex[100] = data(off);
+
+        o.clearRect(0,0,TILE,TILE); o.fillStyle='#a0522d'; o.fillRect(8,8,24,24); o.clearRect(14,8,12,6); tex['armor_leather'] = data(off);
+        o.clearRect(0,0,TILE,TILE); o.fillStyle='#ecf0f1'; o.fillRect(8,8,24,24); o.clearRect(14,8,12,6); tex['armor_iron'] = data(off);
+        o.clearRect(0,0,TILE,TILE); o.fillStyle='#00e5ff'; o.fillRect(8,8,24,24); o.clearRect(14,8,12,6); tex['armor_diamond'] = data(off);
+        o.clearRect(0,0,TILE,TILE); o.fillStyle='#4b0082'; o.fillRect(8,8,24,24); o.clearRect(14,8,12,6); tex['armor_obsidian'] = data(off);
 
         mats.forEach((m, idx) => {
             if(idx === 0) return;
@@ -112,38 +172,57 @@
     function toggleMenu(id) {
         let m = document.getElementById(id); let wasOpen = m.style.display === 'block';
         document.querySelectorAll('.menu-window').forEach(w => w.style.display = 'none');
-        if(!wasOpen) { m.style.display = 'block'; if(id === 'inventory-menu') updateInvUI(); else if(id === 'craft-menu') updateCraftUI(); else if(id === 'cook-menu') updateCookUI(); }
+        if(!wasOpen) { 
+            m.style.display = 'block'; 
+            if(id === 'inventory-menu') updateInvUI(); 
+            else if(id === 'craft-menu') updateCraftUI(); 
+            else if(id === 'cook-menu') updateCookUI(); 
+            else if(id === 'furniture-menu') updateFurnitureUI(); 
+            else if(id === 'armor-menu') updateArmorUI(); 
+        }
     }
 
     function updateInvUI() {
         const grid = document.getElementById('inv-grid'); grid.innerHTML = '';
-        const cats = ['hand', 'pick', 'axe', 'sword', 'spade', 1, 2, 3, 4, 6, 7, 100, 17, 13, 14, 15, 16, 50, 51];
+        const cats = ['hand', 'pick', 'axe', 'sword', 'spade', 'armor_leather', 'armor_iron', 'armor_diamond', 'armor_obsidian', 1, 2, 3, 4, 5, 6, 7, 8, 9, 20, 21, 22, 23, 30, 31, 32, 33, 40, 100, 17, 13, 14, 15, 16, 50, 51, 60];
         cats.forEach(id => {
             let count = (typeof id === 'number') ? (inv[id] || 0) : (inv[id] || 0);
             if (id !== 'hand' && count <= 0) return;
             let slot = document.createElement('div'); slot.className = `inv-slot ${selected === id ? 'selected' : ''}`;
             if (id === 'hand') slot.innerHTML = '✋'; 
-            else if (typeof id === 'string') { let img = new Image(); img.src = tex[mats[count].id + '_' + id].src; img.style.width="48px"; slot.appendChild(img); }
+            else if (typeof id === 'string') { let img = new Image(); img.src = tex[id.includes('armor') ? id : (mats[count] ? mats[count].id + '_' + id : id)].src; img.style.width="48px"; slot.appendChild(img); }
             else { let img = new Image(); img.src = tex[id].src; img.style.width="45px"; slot.appendChild(img); slot.innerHTML += `<div class="inv-count">${count}</div>`; }
-            slot.onclick = () => { selected = id; updateInvUI(); updateCurrentItemName(); };
+            slot.onclick = () => { 
+                if(id === 'armor_leather') { player.armorDef = 0.3; updateCurrentItemName(); updateInvUI(); return; }
+                if(id === 'armor_iron') { player.armorDef = 0.6; updateCurrentItemName(); updateInvUI(); return; }
+                if(id === 'armor_diamond') { player.armorDef = 0.8; updateCurrentItemName(); updateInvUI(); return; }
+                if(id === 'armor_obsidian') { player.armorDef = 0.95; updateCurrentItemName(); updateInvUI(); return; }
+                selected = id; updateInvUI(); updateCurrentItemName(); 
+            };
             grid.appendChild(slot);
         });
+        document.getElementById('armor-fill').style.width = (player.armorDef * 100) + '%';
     }
 
     function updateCraftUI() {
         const cont = document.getElementById('craft-container'); cont.innerHTML = '';
         const recipes = [
-            { t: "Материалы", items: [{ n: "Доски (x4)", cost: {4: 1}, give: {7: 4}, ico: tex[7].src }, { n: "Факел (x4)", cost: {17: 1, 7: 1}, give: {100: 4}, ico: tex[100].src }] },
+            { t: "Материалы", items: [{ n: "Доски (x4)", cost: {4: 1}, give: {7: 4}, ico: tex[7].src }, { n: "Факел (x4)", cost: {17: 1, 7: 1}, give: {100: 4}, ico: tex[100].src }, { n: "Кам. Кирпичи (x2)", cost: {3: 2}, give: {9: 2}, ico: tex[9].src }] },
             { t: "Кирки", type: 'pick' }, { t: "Мечи", type: 'sword' }, { t: "Топоры", type: 'axe' }, { t: "Лопаты", type: 'spade' }
         ];
         recipes.forEach(cat => {
             let row = document.createElement('div'); row.innerHTML = `<div style="color:#666;font-size:10px;margin:12px 0 6px 0;font-weight:bold">${cat.t}</div>`;
             let list = cat.items || mats.slice(1).map((m, idx) => ({ n: m.name + " " + cat.t.slice(0,-1), cost: {[m.cId]: 3, 7: 2}, type: cat.type, matIdx: idx + 1, ico: tex[m.id + '_' + cat.type].src }));
             list.forEach(r => {
-                let can = true; for(let [id, n] of Object.entries(r.cost)) if((inv[id]||0) < n) can = false;
+                let can = true; 
+                let costDesc = "";
+                for(let [id, n] of Object.entries(r.cost)) {
+                    if((inv[id]||0) < n) can = false;
+                    costDesc += `${getBlockName(parseInt(id)||id)}: ${n} `;
+                }
                 if(r.type && inv[r.type] >= r.matIdx) can = false;
                 let div = document.createElement('div'); div.className = 'craft-item'; div.style.opacity = can ? '1' : '0.3';
-                div.innerHTML = `<img src="${r.ico}" width="32"> <div class="craft-info"><b>${r.n}</b></div>`;
+                div.innerHTML = `<img src="${r.ico}" width="32"> <div class="craft-info"><b>${r.n}</b><span class="craft-cost">${costDesc}</span></div>`;
                 div.onclick = () => { if(!can) return; for(let [id, n] of Object.entries(r.cost)) inv[id] -= n; if(r.give) for(let [id, n] of Object.entries(r.give)) inv[id] = (inv[id]||0) + n; if(r.type) { inv[r.type] = r.matIdx; let m = mats[r.matIdx]; if(r.type==='pick') player.mineMult=m.m; if(r.type==='sword') player.damage=m.d; if(r.type==='spade') player.spadeMult=m.s; if(r.type==='axe') player.axeMult=m.a; } updateCraftUI(); updateCurrentItemName(); };
                 row.appendChild(div);
             });
@@ -151,103 +230,331 @@
         });
     }
 
+    function updateFurnitureUI() {
+        const cont = document.getElementById('furniture-container'); cont.innerHTML = '';
+        const recipes = [
+            { n: "Стол", cost: {7: 4}, give: {20: 1}, ico: tex[20].src },
+            { n: "Стул", cost: {7: 3}, give: {21: 1}, ico: tex[21].src },
+            { n: "Дер. Дверь", cost: {7: 6}, give: {22: 1}, ico: tex[22].src },
+            { n: "Жел. Дверь", cost: {14: 6}, give: {23: 1}, ico: tex[23].src },
+            { n: "Медная Ловушка", cost: {13: 3}, give: {30: 1}, ico: tex[30].src },
+            { n: "Жел. Ловушка", cost: {14: 3}, give: {31: 1}, ico: tex[31].src },
+            { n: "Алм. Ловушка", cost: {15: 3}, give: {32: 1}, ico: tex[32].src },
+            { n: "Обсид. Ловушка", cost: {16: 3}, give: {33: 1}, ico: tex[33].src },
+            { n: "ПОРТАЛ ПОБЕДЫ", cost: {15: 30, 16: 15}, give: {40: 1}, ico: tex[40].src }
+        ];
+        recipes.forEach(r => {
+            let can = true; 
+            let costDesc = "";
+            for(let [id, n] of Object.entries(r.cost)) {
+                if((inv[id]||0) < n) can = false;
+                costDesc += `${getBlockName(parseInt(id)||id)}: ${n} `;
+            }
+            let div = document.createElement('div'); div.className = 'craft-item'; div.style.opacity = can ? '1' : '0.3';
+            div.innerHTML = `<img src="${r.ico}" width="32"> <div class="craft-info"><b>${r.n}</b><span class="craft-cost">${costDesc}</span></div>`;
+            div.onclick = () => { if(!can) return; for(let [id, n] of Object.entries(r.cost)) inv[id] -= n; for(let [id, n] of Object.entries(r.give)) inv[id] = (inv[id]||0) + n; updateFurnitureUI(); updateInvUI(); };
+            cont.appendChild(div);
+        });
+    }
+
+    function updateArmorUI() {
+        const cont = document.getElementById('armor-container'); cont.innerHTML = '';
+        const recipes = [
+            { n: "Кожаная броня", cost: {60: 5}, give: {'armor_leather': 1}, ico: tex['armor_leather'].src, req: 'armor_leather' },
+            { n: "Железная броня", cost: {14: 8}, give: {'armor_iron': 1}, ico: tex['armor_iron'].src, req: 'armor_iron' },
+            { n: "Алмазная броня", cost: {15: 10}, give: {'armor_diamond': 1}, ico: tex['armor_diamond'].src, req: 'armor_diamond' },
+            { n: "Обсидиановая броня", cost: {16: 10}, give: {'armor_obsidian': 1}, ico: tex['armor_obsidian'].src, req: 'armor_obsidian' }
+        ];
+        recipes.forEach(r => {
+            let can = true; 
+            let costDesc = "";
+            for(let [id, n] of Object.entries(r.cost)) {
+                if((inv[id]||0) < n) can = false;
+                costDesc += `${getBlockName(parseInt(id)||id)}: ${n} `;
+            }
+            if(inv[r.req] > 0) can = false; 
+            let div = document.createElement('div'); div.className = 'craft-item'; div.style.opacity = can ? '1' : '0.3';
+            div.innerHTML = `<img src="${r.ico}" width="32"> <div class="craft-info"><b>${r.n}</b><span class="craft-cost">${costDesc}</span></div>`;
+            div.onclick = () => { if(!can) return; for(let [id, n] of Object.entries(r.cost)) inv[id] -= n; for(let [id, n] of Object.entries(r.give)) inv[id] = (inv[id]||0) + n; updateArmorUI(); updateInvUI(); };
+            cont.appendChild(div);
+        });
+    }
+
     function updateCookUI() {
         const cont = document.getElementById('cook-container'); cont.innerHTML = '';
-        let can = (inv[50] > 0 && inv[17] > 0);
-        let div = document.createElement('div'); div.className = 'craft-item'; div.style.opacity = can ? '1' : '0.3';
-        div.innerHTML = `<img src="${tex[51].src}" width="32"> <div class="craft-info"><b>Жареное мясо</b></div>`;
-        div.onclick = () => { if(!can) return; inv[50]--; inv[17]--; inv[51]++; updateCookUI(); updateInvUI(); };
-        cont.appendChild(div);
+        let canMeat = (inv[50] > 0 && inv[17] > 0);
+        let divMeat = document.createElement('div'); divMeat.className = 'craft-item'; divMeat.style.opacity = canMeat ? '1' : '0.3';
+        divMeat.innerHTML = `<img src="${tex[51].src}" width="32"> <div class="craft-info"><b>Жареное мясо</b><span class="craft-cost">Сырое мясо: 1, Уголь: 1</span></div>`;
+        divMeat.onclick = () => { if(!canMeat) return; inv[50]--; inv[17]--; inv[51]++; updateCookUI(); updateInvUI(); };
+        cont.appendChild(divMeat);
+        
+        let canGlass = (inv[5] > 0 && inv[17] > 0);
+        let divGlass = document.createElement('div'); divGlass.className = 'craft-item'; divGlass.style.opacity = canGlass ? '1' : '0.3';
+        divGlass.innerHTML = `<img src="${tex[8].src}" width="32"> <div class="craft-info"><b>Стекло</b><span class="craft-cost">Песок: 1, Уголь: 1</span></div>`;
+        divGlass.onclick = () => { if(!canGlass) return; inv[5]--; inv[17]--; inv[8]++; updateCookUI(); updateInvUI(); };
+        cont.appendChild(divGlass);
     }
 
     function updateCurrentItemName() {
-        let n = "Кулаки"; if (typeof selected === 'string' && inv[selected] > 0) n = mats[inv[selected]].name + " " + {pick:'Кирка', axe:'Топор', sword:'Меч', spade:'Лопата'}[selected]; else if (typeof selected === 'number') n = getBlockName(selected);
+        let n = "Кулаки"; 
+        if (typeof selected === 'string' && selected.includes('armor')) n = "Броня";
+        else if (typeof selected === 'string' && inv[selected] > 0) n = mats[inv[selected]].name + " " + {pick:'Кирка', axe:'Топор', sword:'Меч', spade:'Лопата'}[selected]; 
+        else if (typeof selected === 'number') n = getBlockName(selected);
         document.getElementById('current-item-display').innerText = "В руках: " + n;
     }
 
-    function getBlockName(id) { return {1:'Трава', 2:'Земля', 3:'Камень', 4:'Дерево', 6:'Листва', 7:'Доски', 13:'Медь', 14:'Железо', 15:'Алмаз', 16:'Обсидиан', 17:'Уголь', 50:'Сырое мясо', 51:'Жареное мясо', 100:'Факел'}[id] || 'Блок'; }
+    function getBlockName(id) { return {1:'Трава', 2:'Земля', 3:'Камень', 4:'Дерево', 5:'Песок', 6:'Листва', 7:'Доски', 8:'Стекло', 9:'Кирпичи', 13:'Медь', 14:'Железо', 15:'Алмаз', 16:'Обсидиан', 17:'Уголь', 20:'Стол', 21:'Стул', 22:'Дер. Дверь', 23:'Жел. Дверь', 30:'Мед. Ловушка', 31:'Жел. Ловушка', 32:'Алм. Ловушка', 33:'Обсид. Ловушка', 40:'Портал', 50:'Сырое мясо', 51:'Жареное мясо', 60:'Кожа', 100:'Факел', 'armor_leather':'Кожа. Броня', 'armor_iron':'Жел. Броня', 'armor_diamond':'Алм. Броня', 'armor_obsidian':'Обсид. Броня'}[id] || 'Блок'; }
 
     function drawModel(p, type = 'zombie') {
         ctx.save(); ctx.translate(Math.round(p.x), Math.round(p.y)); if(p.faceL) { ctx.scale(-1, 1); ctx.translate(-p.w, 0); }
         const s = 2, a = Math.sin(p.anim) * 6;
-        if (type === 'pig') { ctx.fillStyle = '#ff8a80'; ctx.fillRect(0, 10, 30, 15); ctx.fillRect(25, 5, 10, 10); ctx.fillStyle = '#000'; ctx.fillRect(32, 7, 2, 2); ctx.fillStyle = '#d32f2f'; ctx.fillRect(2, 25+a/2, 5, 8); ctx.fillRect(23, 25-a/2, 5, 8); }
-        else {
-            const isZ = type === 'zombie'; ctx.fillStyle = isZ ? '#1a2e13' : '#3d2b1f'; ctx.fillRect(5*s, -1*s, 8*s, 3*s); ctx.fillStyle = isZ ? '#4a7c38' : '#ffdbac'; ctx.fillRect(5*s, 1*s, 8*s, 7*s); ctx.fillStyle = '#fff'; ctx.fillRect(6.5*s, 3*s, 2*s, 1.5*s); ctx.fillRect(10*s, 3*s, 2*s, 1.5*s); ctx.fillStyle = isZ ? '#000' : '#4682b4'; ctx.fillRect(7.5*s, 3*s, 1*s, 1.5*s); ctx.fillRect(11*s, 3*s, 1*s, 1.5*s);
-            const drawArm = (ax, ay, animOff, tool) => { ctx.fillStyle = isZ ? '#3a5f2c' : '#00bcd4'; ctx.fillRect(ax, ay + animOff, 3*s, 5*s); ctx.fillStyle = isZ ? '#4a7c38' : '#ffdbac'; ctx.fillRect(ax, ay + 5*s + animOff, 3*s, 4*s); if(tool && typeof selected === 'string' && inv[selected] > 0) { ctx.save(); ctx.translate(ax, ay+8+animOff); ctx.rotate(miningBlock ? Math.sin(time*0.5)*0.6 : 0.3); let img = tex[mats[inv[selected]].id + '_' + selected]; if(img) ctx.drawImage(img, -12, -12, 28, 28); ctx.restore(); } };
-            drawArm(2*s, 8*s, a, false); drawArm(13*s, 8*s, -a, type === 'player'); ctx.fillStyle = isZ ? '#2e4d23' : '#00bcd4'; ctx.fillRect(5*s, 8*s, 8*s, 10*s); ctx.fillStyle = isZ ? '#1a2e13' : '#303f9f'; ctx.fillRect(5*s, 18*s, 4*s, 9*s+a); ctx.fillRect(9*s, 18*s, 4*s, 9*s-a);
+        if (type === 'pig' || type === 'cow') { 
+            let isC = type === 'cow';
+            ctx.fillStyle = isC ? '#5d4037' : '#ff8a80'; 
+            ctx.fillRect(0, 10, isC?35:30, isC?20:15); 
+            if(isC) { ctx.fillStyle = '#fff'; ctx.fillRect(10, 10, 10, 10); ctx.fillRect(25, 15, 8, 8); } 
+            ctx.fillStyle = isC ? '#4e342e' : '#ff8a80';
+            ctx.fillRect(isC?30:25, 5, 12, 12); 
+            ctx.fillStyle = '#000'; ctx.fillRect(isC?38:32, 7, 2, 2); 
+            ctx.fillStyle = isC ? '#3e2723' : '#d32f2f'; 
+            ctx.fillRect(2, (isC?30:25)+a/2, 5, isC?12:8); ctx.fillRect(isC?28:23, (isC?30:25)-a/2, 5, isC?12:8); 
+        } else {
+            const isZ = type === 'zombie'; 
+            const isSkel = type === 'skeleton';
+            const isCreep = type === 'creeper'; 
+            if (isCreep && p.fuse > 0) {
+                ctx.globalAlpha = (Math.sin(p.fuse * 0.5) + 1) / 2 + 0.2;
+                ctx.fillStyle = '#fff';
+            } else {
+                ctx.fillStyle = isCreep ? '#2ecc71' : (isZ ? '#1a2e13' : (isSkel ? '#bdc3c7' : '#3d2b1f')); 
+            }
+            ctx.fillRect(5*s, -1*s, 8*s, 3*s); 
+            ctx.fillStyle = isCreep && p.fuse <= 0 ? '#27ae60' : (isZ ? '#4a7c38' : (isSkel ? '#ecf0f1' : '#ffdbac')); ctx.fillRect(5*s, 1*s, 8*s, 7*s); 
+            if (isCreep) {
+                ctx.fillStyle = '#000'; ctx.fillRect(6.5*s, 3*s, 2*s, 2*s); ctx.fillRect(9.5*s, 3*s, 2*s, 2*s); ctx.fillRect(8.5*s, 5*s, 1*s, 2*s);
+            } else {
+                ctx.fillStyle = isSkel ? '#000' : '#fff'; ctx.fillRect(6.5*s, 3*s, 2*s, 1.5*s); ctx.fillRect(10*s, 3*s, 2*s, 1.5*s); 
+                ctx.fillStyle = isZ ? '#000' : (isSkel ? '#222' : '#4682b4'); ctx.fillRect(7.5*s, 3*s, 1*s, 1.5*s); ctx.fillRect(11*s, 3*s, 1*s, 1.5*s);
+            }
+            ctx.globalAlpha = 1.0;
+            if (!isCreep) {
+                const drawArm = (ax, ay, animOff, tool) => { 
+                    ctx.fillStyle = isZ ? '#3a5f2c' : (isSkel ? '#bdc3c7' : '#00bcd4'); ctx.fillRect(ax, ay + animOff, 3*s, 5*s); 
+                    ctx.fillStyle = isZ ? '#4a7c38' : (isSkel ? '#ecf0f1' : '#ffdbac'); ctx.fillRect(ax, ay + 5*s + animOff, 3*s, 4*s); 
+                    if(tool && typeof selected === 'string' && !selected.includes('armor') && inv[selected] > 0) { 
+                        ctx.save(); ctx.translate(ax, ay+8+animOff); ctx.rotate(miningBlock || (player.isAttacking) ? Math.sin(time*0.5)*0.6 : 0.3); 
+                        let img = tex[mats[inv[selected]].id + '_' + selected]; if(img) ctx.drawImage(img, -12, -12, 28, 28); ctx.restore(); 
+                    } 
+                };
+                drawArm(2*s, 8*s, a, false); drawArm(13*s, 8*s, -a, type === 'player'); 
+            }
+            ctx.fillStyle = isCreep ? '#2ecc71' : (isZ ? '#2e4d23' : (isSkel ? '#95a5a6' : '#00bcd4')); ctx.fillRect(5*s, 8*s, 8*s, 10*s); 
+            if(type === 'player' && player.armorDef > 0) {
+                if (player.armorDef === 0.3) ctx.fillStyle = '#a0522d'; 
+                else if (player.armorDef === 0.6) ctx.fillStyle = '#bdc3c7';
+                else if (player.armorDef === 0.8) ctx.fillStyle = '#00e5ff';
+                else ctx.fillStyle = '#4b0082';
+                ctx.fillRect(4.5*s, 7.5*s, 9*s, 11*s); 
+            }
+            ctx.fillStyle = isCreep ? '#27ae60' : (isZ ? '#1a2e13' : (isSkel ? '#bdc3c7' : '#303f9f')); 
+            ctx.fillRect(5*s, 18*s, 4*s, 9*s+a); ctx.fillRect(9*s, 18*s, 4*s, 9*s-a);
         }
         ctx.restore();
     }
 
-    function move(obj) {
+    function move(obj, isPlayer = false) {
         obj.vy += GRAVITY; let nX = obj.x + (obj.vx || 0), nY = obj.y + obj.vy;
-        const isSolid = (x, y) => { let b = world[Math.floor(x/TILE)+','+Math.floor(y/TILE)]; return b && b !== 4 && b !== 6 && b !== 100; };
-        if(!isSolid(nX+(obj.vx>0?obj.w:0), obj.y+5) && !isSolid(nX+(obj.vx>0?obj.w:0), obj.y+obj.h-5)) obj.x = nX; else obj.vx = (obj.vx || 0) * -1;
-        if(obj.vy > 0) { if(isSolid(obj.x+5, nY+obj.h) || isSolid(obj.x+obj.w-5, nY+obj.h)) { obj.y = Math.floor((nY+obj.h)/TILE)*TILE-obj.h; obj.vy = 0; obj.onG = true; } else { obj.y = nY; obj.onG = false; }
-        } else { if(isSolid(obj.x+5, nY) || isSolid(obj.x+obj.w-5, nY)) { obj.vy = 0; obj.y = Math.floor(nY/TILE+1)*TILE; } else obj.y = nY; }
+        const isSolid = (x, y) => { 
+            let b = world[Math.floor(x/TILE)+','+Math.floor(y/TILE)]; 
+            if (!b || b === 4 || b === 6 || b === 100 || b === 20 || b === 21 || b === 40 || (b >= 30 && b <= 33)) return false;
+            if (isPlayer && (b === 22 || b === 23)) return false; 
+            return true;
+        };
+        if(!isSolid(nX+(obj.vx>0?obj.w:0), obj.y+5) && !isSolid(nX+(obj.vx>0?obj.w:0), obj.y+obj.h-5)) { obj.x = nX; } 
+        else {
+            if(obj.isZombie) {
+                let bx = Math.floor((nX+(obj.vx>0?obj.w:0))/TILE), by = Math.floor((obj.y+5)/TILE), k = bx+','+by;
+                if(world[k] === 22) { 
+                    doorBreakingCache[k] = (doorBreakingCache[k] || 0) + 1;
+                    if(time % 10 === 0) spawnPart(bx*TILE+20, by*TILE+20, '#8d6e63', 2);
+                    if(doorBreakingCache[k] > 600) { delete world[k]; delete doorBreakingCache[k]; lightCache={}; spawnPart(bx*TILE+20, by*TILE+20, '#8d6e63', 15); }
+                }
+            }
+            obj.vx = (obj.vx || 0) * -1;
+        }
+        if(obj.vy > 0) { 
+            if(isSolid(obj.x+5, nY+obj.h) || isSolid(obj.x+obj.w-5, nY+obj.h)) { obj.y = Math.floor((nY+obj.h)/TILE)*TILE-obj.h; obj.vy = 0; obj.onG = true; } 
+            else { obj.y = nY; obj.onG = false; }
+        } else { 
+            if(isSolid(obj.x+5, nY) || isSolid(obj.x+obj.w-5, nY)) { obj.vy = 0; obj.y = Math.floor(nY/TILE+1)*TILE; } 
+            else obj.y = nY; 
+        }
     }
 
-    function getBlockColor(id) { return {1:'#388e3c', 2:'#6d4c41', 3:'#546e7a', 4:'#5d4037', 6:'#2e7d32', 7:'#a1887f', 17:'#222', 13:'#e67e22', 14:'#ecf0f1', 15:'#00e5ff', 16:'#4b0082', 100:'#ff9800'}[id] || '#fff'; }
+    function getBlockColor(id) { return {1:'#388e3c', 2:'#6d4c41', 3:'#546e7a', 4:'#5d4037', 5:'#eebd71', 6:'#2e7d32', 7:'#a1887f', 8:'#96c8ff', 9:'#7f8c8d', 17:'#222', 13:'#e67e22', 14:'#ecf0f1', 15:'#00e5ff', 16:'#4b0082', 20:'#8d6e63', 21:'#8d6e63', 22:'#5d4037', 23:'#bdc3c7', 40:'#4b0082', 100:'#ff9800'}[id] || '#fff'; }
 
-    // НОВАЯ ФУНКЦИЯ СВЕТА
+    let lightCache = {}, lastCam = {x:0,y:0};
     function getLightLevel(gx, gy) {
-        // Проверка неба
+        let k = gx+','+gy; if(lightCache[k] !== undefined) return lightCache[k];
         let hasSky = true;
-        for(let y = gy - 1; y > gy - 20; y--) {
-            let b = world[gx+','+y]; if(b && b !== 6 && b !== 100) { hasSky = false; break; }
+        for(let y = gy - 1; y > gy - 10; y--) { 
+            let b = world[gx+','+y]; 
+            // Дерево (4) больше не создает тень сверху
+            if(b && b !== 6 && b !== 4 && b !== 100 && b !== 8 && b !== 22 && b !== 23) { hasSky = false; break; } 
         }
-        if(hasSky) return 1;
-        // Проверка факелов рядом
-        for(let ox=-2; ox<=2; ox++) {
-            for(let oy=-2; oy<=2; oy++) {
-                if(world[(gx+ox)+','+(gy+oy)] === 100) return 1;
+        if(hasSky) { lightCache[k] = 1; return 1; }
+        for(let ox=-2; ox<=2; ox++) { for(let oy=-2; oy<=2; oy++) { if(world[(gx+ox)+','+(gy+oy)] === 100 || world[(gx+ox)+','+(gy+oy)] === 40) { lightCache[k] = 1; return 1; } } }
+        lightCache[k] = 0.15; return 0.15;
+    }
+
+    function handleTraps(m) {
+        let fk = Math.floor((m.x+m.w/2)/TILE)+','+Math.floor((m.y+m.h-5)/TILE); let fb = world[fk];
+        if(fb >= 30 && fb <= 33 && time % 10 === 0) {
+            spawnPart(m.x+13, m.y+27, '#f00', 3);
+            if(fb === 30) m.hp -= 5; 
+            else if(fb === 31) m.hp -= 12.5; 
+            else if(fb === 32) m.hp -= 25; 
+            else if(fb === 33) m.hp -= 50; 
+        }
+    }
+
+    function performAttack() {
+        player.isAttacking = true; setTimeout(() => player.isAttacking = false, 200);
+        const hit = (arr) => {
+            arr.forEach((e, i) => { 
+                if(Math.hypot((e.x+e.w/2)-(player.x+13), (e.y+e.h/2)-(player.y+27)) < 60) { 
+                    e.hp -= player.damage; spawnPart(e.x+13, e.y+27, '#f00', 5); 
+                    if(e.hp <= 0) { 
+                        spawnPart(e.x+13, e.y+27, '#fff', 10); 
+                        if(e.type === 'cow' || e.type === 'pig') { inv[50] = (inv[50]||0) + 1; if(e.type === 'cow' && Math.random() > 0.3) inv[60] = (inv[60]||0) + 1; updateInvUI(); }
+                        arr.splice(i, 1); 
+                    } 
+                } 
+            });
+        };
+        hit(zombies); hit(skeletons); hit(creepers); hit(animals);
+    }
+
+    function saveGame() {
+        localStorage.setItem('phaserCraftSave', JSON.stringify({inv, world, player: {x:player.x, y:player.y, hp:player.hp, hunger:player.hunger, armorDef:player.armorDef}, time}));
+        let ind = document.getElementById('save-indicator'); ind.style.opacity = 1; setTimeout(()=>ind.style.opacity = 0, 2000);
+    }
+    function loadGame() {
+        let s = localStorage.getItem('phaserCraftSave');
+        if(s) {
+            let d = JSON.parse(s); inv = d.inv; world = d.world; 
+            player.x = d.player.x; player.y = d.player.y; player.hp = d.player.hp; player.hunger = d.player.hunger; player.armorDef = d.player.armorDef || 0;
+            time = d.time; updateInvUI(); return true;
+        } return false;
+    }
+
+    function beatGame() {
+        alert("🎉 ПОБЕДА!");
+        world = {}; zombies = []; animals = []; skeletons = []; creepers = []; particles = []; doorBreakingCache = {}; lightCache = {};
+        player.x = 400; player.y = 0; player.hp = 100; player.hunger = 100;
+        generateWorld(); saveGame(); location.reload();
+    }
+
+    function generateWorld() {
+        for(let x = -60; x < 100; x++) {
+            let sY = 15 + Math.floor(Math.sin(x*0.1)*3);
+            for(let y = sY; y < 250; y++) {
+                let cave = Math.sin(x * 0.2) + Math.cos(y * 0.2); if (cave > 1.3 && y > sY + 5) continue; 
+                let b = 3; 
+                if (y === sY) b = Math.random() < 0.15 ? 5 : 1; 
+                else if (y < sY + 5) b = world[x+','+sY] === 5 ? 5 : 2; 
+                else { if (y >= 35 && y < 70 && Math.random() < 0.1) b = 17; else if (y >= 70 && y < 110 && Math.random() < 0.08) b = 13; else if (y >= 110 && y < 150 && Math.random() < 0.06) b = 14; else if (y >= 150 && y < 190 && Math.random() < 0.04) b = 15; else if (y >= 190 && Math.random() < 0.05) b = 16; }
+                world[x+','+y] = b;
             }
+            if(x % 12 === 0 && x !== 0) { for(let th=1; th<=4; th++) world[x+','+(sY-th)] = 4; for(let lx=-1; lx<=1; lx++) for(let ly=-2; ly<=0; ly++) world[(x+lx)+','+(sY-4+ly)] = 6; }
         }
-        return 0.15; // Тьма
     }
 
     function loop() {
         time += 2; player.vx = keys['A'] ? -4 : (keys['D'] ? 4 : 0);
         if(player.vx !== 0) { player.faceL = player.vx < 0; player.anim += 0.25; } else player.anim = 0;
         if(keys['W'] && player.onG) { player.vy = -12; player.onG = false; }
-        move(player); player.hunger -= 0.005; if (player.hunger <= 0) { player.hunger = 0; player.hp -= 0.05; spawnPart(player.x+13, player.y+27, '#f00', 1); }
-        
+        move(player, true);
+        player.hunger -= 0.005; if (player.hunger <= 0) { player.hunger = 0; player.hp -= 0.05 * (1 - player.armorDef); spawnPart(player.x+13, player.y+27, '#f00', 1); }
+        let pk = Math.floor((player.x+13)/TILE)+','+Math.floor((player.y+player.h-5)/TILE);
+        if(world[pk] === 40) { beatGame(); return; }
+        if (time % 600 === 0) saveGame(); 
         const dp = (Math.sin(time/500) + 1) / 2; const sb = 0.2 + (dp * 0.6);
-        
+        if(Math.abs(camera.x - lastCam.x) > TILE*2 || Math.abs(camera.y - lastCam.y) > TILE*2) { lightCache = {}; lastCam = {x:camera.x, y:camera.y}; }
         zombies.forEach((z, i) => { 
-            z.vx = (z.x < player.x ? 1.5 : -1.5); z.anim += 0.1;
+            z.vx = (z.x < player.x ? 1.5 : -1.5); z.anim += 0.1; z.isZombie = true;
             const isS = (x, y) => { let b = world[Math.floor(x/TILE)+','+Math.floor(y/TILE)]; return b && b !== 4 && b !== 6 && b !== 100; };
             let cx = z.vx > 0 ? z.x + z.w + 10 : z.x - 10;
             if (z.onG && isS(cx, z.y+z.h-5) && !isS(cx, z.y+5) && !isS(cx, z.y-20)) { z.vy = -8.5; z.onG = false; }
             if (dp > 0.7 && !isS(z.x + z.w/2, z.y - 10)) { z.hp -= 0.2; if (time % 5 === 0) spawnPart(z.x + Math.random()*z.w, z.y + Math.random()*z.h, '#ff6600', 1); }
-            move(z); if(Math.hypot(z.x-player.x, z.y-player.y) < 20) { player.hp -= 0.4; if(time % 10 === 0) spawnPart(player.x+13, player.y+27, '#f00', 2); }
+            handleTraps(z); move(z); 
+            if(Math.hypot(z.x-player.x, z.y-player.y) < 20) { player.hp -= 0.4 * (1 - player.armorDef); if(time % 10 === 0) spawnPart(player.x+13, player.y+27, '#f00', 2); }
             if(z.hp <= 0) { spawnPart(z.x+13, z.y+27, '#1a2e13', 10); zombies.splice(i, 1); }
         });
-
-        animals.forEach(a => { if(Math.random()<0.01) a.vx *= -1; a.faceL = a.vx < 0; a.anim += 0.1; move(a); });
-        if(zombies.length < 5 && Math.random() < 0.01 && (dp < 0.3 || player.y > 1000)) zombies.push({x: player.x + (Math.random()>0.5?500:-500), y: player.y - 100, vx: 0, vy: 0, w: 26, h: 54, hp: 100, anim: 0, onG: false});
-        if(animals.length < 5 && Math.random() < 0.01) animals.push({x: player.x + (Math.random()>0.5?600:-600), y: player.y - 100, vx: 1, vy: 0, w: 35, h: 30, hp: 20, anim: 0, onG: false});
-
+        skeletons.forEach((s, i) => { 
+            s.vx = (s.x < player.x ? 2.5 : -2.5); s.anim += 0.15;
+            const isS = (x, y) => { let b = world[Math.floor(x/TILE)+','+Math.floor(y/TILE)]; return b && b !== 4 && b !== 6 && b !== 100; };
+            let cx = s.vx > 0 ? s.x + s.w + 10 : s.x - 10;
+            if (s.onG && isS(cx, s.y+s.h-5) && !isS(cx, s.y+5) && !isS(cx, s.y-20)) { s.vy = -9; s.onG = false; }
+            if (dp > 0.7 && !isS(s.x + s.w/2, s.y - 10)) { s.hp -= 0.4; if (time % 5 === 0) spawnPart(s.x + Math.random()*s.w, s.y + Math.random()*s.h, '#ff6600', 1); }
+            handleTraps(s); move(s); 
+            if(Math.hypot(s.x-player.x, s.y-player.y) < 20) { player.hp -= 0.6 * (1 - player.armorDef); if(time % 10 === 0) spawnPart(player.x+13, player.y+27, '#f00', 2); } 
+            if(s.hp <= 0) { spawnPart(s.x+13, s.y+27, '#bdc3c7', 10); skeletons.splice(i, 1); }
+        });
+        creepers.forEach((c, i) => {
+            c.anim += 0.1; handleTraps(c);
+            let dist = Math.hypot(c.x - player.x, c.y - player.y);
+            if (dist < 80) { 
+                c.vx = 0; c.fuse = (c.fuse || 0) + 1;
+                if (c.fuse > 60) { 
+                    let cx = Math.floor((c.x+13)/TILE), cy = Math.floor((c.y+27)/TILE);
+                    for(let ox=-3; ox<=3; ox++) { for(let oy=-3; oy<=3; oy++) { if(Math.hypot(ox,oy)<=3.5) delete world[(cx+ox)+','+(cy+oy)]; } }
+                    spawnPart(c.x+13, c.y+27, '#fff', 40); spawnPart(c.x+13, c.y+27, '#e67e22', 20);
+                    if(dist < 120) player.hp -= (100 - dist) * (1 - player.armorDef); 
+                    creepers.splice(i, 1); lightCache = {}; return;
+                }
+            } else { c.vx = c.x < player.x ? 1.5 : -1.5; c.fuse = 0; }
+            move(c);
+            if(c.hp <= 0) { spawnPart(c.x+13, c.y+27, '#2ecc71', 10); creepers.splice(i, 1); }
+        });
+        animals.forEach((a, i) => { 
+            if(Math.random()<0.01) a.vx *= -1; a.faceL = a.vx < 0; a.anim += 0.1; handleTraps(a); move(a); 
+            if(a.hp <= 0) { animals.splice(i,1); } 
+        });
+        if(zombies.length < 4 && Math.random() < 0.01 && (dp < 0.3 || player.y > 1000)) zombies.push({x: player.x + (Math.random()>0.5?500:-500), y: player.y - 100, vx: 0, vy: 0, w: 26, h: 54, hp: 50, anim: 0, onG: false});
+        if(skeletons.length < 3 && Math.random() < 0.005 && (dp < 0.2 || player.y > 1500)) skeletons.push({x: player.x + (Math.random()>0.5?500:-500), y: player.y - 100, vx: 0, vy: 0, w: 26, h: 54, hp: 80, anim: 0, onG: false}); 
+        if(creepers.length < 2 && Math.random() < 0.003) creepers.push({x: player.x + (Math.random()>0.5?500:-500), y: player.y - 100, vx: 0, vy: 0, w: 26, h: 54, hp: 40, anim: 0, onG: false, fuse: 0}); 
+        if(animals.length < 6 && Math.random() < 0.01) {
+            let isCow = Math.random() > 0.5;
+            animals.push({x: player.x + (Math.random()>0.5?600:-600), y: player.y - 100, vx: 1, vy: 0, w: isCow?40:35, h: isCow?40:30, hp: isCow?30:20, anim: 0, onG: false, type: isCow?'cow':'pig'});
+        }
         camera.x += (player.x - camera.x) * 0.1; camera.y += (player.y - camera.y) * 0.1;
         ctx.fillStyle = `rgb(${80*sb},${120*sb},${200*sb})`; ctx.fillRect(0,0,cvs.width,cvs.height);
         ctx.save(); ctx.translate(Math.round(-camera.x + cvs.width/2), Math.round(-camera.y + cvs.height/2));
-        
         for(let k in world) { 
             let [x,y] = k.split(','); let gx = parseInt(x), gy = parseInt(y);
             if(Math.abs(gx*TILE-camera.x) < cvs.width/2 + TILE && Math.abs(gy*TILE-camera.y) < cvs.height/2 + TILE) {
                 ctx.drawImage(tex[world[k]], gx*TILE, gy*TILE, TILE, TILE); 
-                // РИСОВАНИЕ ТЕНИ
                 let light = getLightLevel(gx, gy);
                 if(light < 1) { ctx.fillStyle = `rgba(0,0,0,${1 - light})`; ctx.fillRect(gx*TILE, gy*TILE, TILE, TILE); }
                 if (miningBlock && miningBlock.k === k) { ctx.fillStyle = `rgba(0,0,0,${miningBlock.progress * 0.7})`; ctx.fillRect(gx*TILE, gy*TILE, TILE, TILE); }
             }
         }
         for(let i=particles.length-1; i>=0; i--) { let p = particles[i]; p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.l--; if(p.l <= 0) { particles.splice(i, 1); continue; } ctx.fillStyle = p.c; ctx.fillRect(p.x, p.y, p.s, p.s); }
-        drawModel(player, 'player'); zombies.forEach(z => drawModel(z, 'zombie')); animals.forEach(a => drawModel(a, 'pig'));
+        drawModel(player, 'player'); 
+        zombies.forEach(z => drawModel(z, 'zombie')); 
+        skeletons.forEach(s => drawModel(s, 'skeleton')); 
+        creepers.forEach(c => drawModel(c, 'creeper')); 
+        animals.forEach(a => drawModel(a, a.type || 'pig')); 
         ctx.restore();
-        
         document.getElementById('hp-fill').style.width = player.hp + '%'; document.getElementById('hunger-fill').style.width = player.hunger + '%';
-        if(player.hp <= 0) { alert("Вы погибли!"); location.reload(); }
+        
+        if(player.hp <= 0) { 
+            localStorage.removeItem('phaserCraftSave'); 
+            location.reload(); 
+            return;
+        }
+        
         if (isMouseDown) updateMining(); requestAnimationFrame(loop);
     }
 
@@ -256,9 +563,16 @@
         const gx = Math.floor(wx/TILE), gy = Math.floor(wy/TILE), k = gx+','+gy, b = world[k];
         if (b && Math.hypot(wx-(player.x+13), wy-(player.y+27))/TILE <= 4) {
             if (!miningBlock || miningBlock.k !== k) miningBlock = { k: k, progress: 0 };
-            let s = 0.03; if(selected === 'pick' && (b==3 || b>=13)) s *= player.mineMult; else if(selected === 'spade' && (b==1 || b==2)) s *= player.spadeMult; else if(selected === 'axe' && b==4) s *= player.axeMult;
+            let s = 0.03; 
+            if(selected === 'pick' && (b==3 || b==9 || b>=13 && b<=17 || (b>=30 && b<=33) || b==40)) s *= player.mineMult; 
+            else if(selected === 'spade' && (b==1 || b==2 || b==5)) s *= player.spadeMult; 
+            else if(selected === 'axe' && (b==4 || b==7 || b==20 || b==21 || b==22 || b==23)) s *= player.axeMult; 
             miningBlock.progress += s; if(time % 6 === 0) spawnPart(wx, wy, getBlockColor(b), 1);
-            if (miningBlock.progress >= 1) { spawnPart(gx*TILE+20, gy*TILE+20, getBlockColor(b), 8); inv[b] = (inv[b]||0) + 1; delete world[k]; miningBlock = null; updateInvUI(); }
+            if (miningBlock.progress >= 1) { 
+                spawnPart(gx*TILE+20, gy*TILE+20, getBlockColor(b), 8); 
+                inv[b] = (inv[b]||0) + 1; 
+                delete world[k]; lightCache = {}; miningBlock = null; updateInvUI(); 
+            }
         } else miningBlock = null;
     }
 
@@ -267,31 +581,24 @@
         isMouseDown = true; lastMousePos = {x: e.clientX, y: e.clientY};
         const wx = lastMousePos.x + camera.x - cvs.width/2, wy = lastMousePos.y + camera.y - cvs.height/2;
         if (selected === 50 || selected === 51) { let h = selected === 51 ? 30 : 10; player.hunger = Math.min(100, player.hunger + h); player.hp = Math.min(100, player.hp + h/2); inv[selected]--; if (inv[selected] <= 0) selected = 'hand'; updateInvUI(); updateCurrentItemName(); return; }
-        zombies.forEach((z, i) => { if(Math.hypot(wx-z.x, wy-z.y) < 40) { z.hp -= player.damage; spawnPart(z.x+13, z.y+27, '#f00', 5); if(z.hp <= 0) { spawnPart(z.x+13, z.y+27, '#1a2e13', 10); zombies.splice(i, 1); } } });
-        animals.forEach((a, i) => { if(Math.hypot(wx-a.x, wy-a.y) < 40) { a.hp -= player.damage; spawnPart(a.x+17, a.y+15, '#f00', 5); if(a.hp <= 0) { spawnPart(a.x+17, a.y+15, '#ff8a80', 10); inv[50] = (inv[50]||0) + 1; animals.splice(i, 1); updateInvUI(); } } });
         const gx = Math.floor(wx/TILE), gy = Math.floor(wy/TILE), k = gx+','+gy;
-        if (Math.hypot(wx-(player.x+13), wy-(player.y+27))/TILE <= 4 && !world[k] && typeof selected === 'number' && inv[selected] > 0) { world[k] = selected; inv[selected]--; updateInvUI(); }
+        if (Math.hypot(wx-(player.x+13), wy-(player.y+27))/TILE <= 4 && !world[k] && typeof selected === 'number' && inv[selected] > 0) { 
+            world[k] = selected; inv[selected]--; lightCache = {}; updateInvUI(); 
+        }
     };
     window.onpointerup = () => { isMouseDown = false; miningBlock = null; };
     window.onpointermove = e => { lastMousePos = {x: e.clientX, y: e.clientY}; };
     const bind = (id, k) => { let e = document.getElementById(id); e.onpointerdown = ev => { ev.preventDefault(); keys[k] = true; }; e.onpointerup = e.onpointerleave = () => keys[k] = false; };
     bind('bL', 'A'); bind('bR', 'D'); bind('bJ', 'W');
-
+    document.getElementById('bAtk').onpointerdown = (e) => { e.preventDefault(); performAttack(); };
     window.onload = () => {
         genTex(); cvs.width = window.innerWidth; cvs.height = window.innerHeight;
-        for(let x = -60; x < 100; x++) {
-            let sY = 15 + Math.floor(Math.sin(x*0.1)*3);
-            for(let y = sY; y < 250; y++) {
-                let cave = Math.sin(x * 0.2) + Math.cos(y * 0.2); if (cave > 1.3 && y > sY + 5) continue; 
-                let b = 3; if (y === sY) b = 1; else if (y < sY + 5) b = 2; 
-                else { if (y >= 35 && y < 70 && Math.random() < 0.1) b = 17; else if (y >= 70 && y < 110 && Math.random() < 0.08) b = 13; else if (y >= 110 && y < 150 && Math.random() < 0.06) b = 14; else if (y >= 150 && y < 190 && Math.random() < 0.04) b = 15; else if (y >= 190 && Math.random() < 0.05) b = 16; }
-                world[x+','+y] = b;
-            }
-            if(x % 12 === 0 && x !== 0) { for(let th=1; th<=4; th++) world[x+','+(sY-th)] = 4; for(let lx=-1; lx<=1; lx++) for(let ly=-2; ly<=0; ly++) world[(x+lx)+','+(sY-4+ly)] = 6; }
+        if(!loadGame()) {
+            generateWorld();
+            player.y = (15 + Math.floor(Math.sin(0*0.1)*3)) * TILE - 150; 
         }
-        player.y = (15 + Math.floor(Math.sin(0*0.1)*3)) * TILE - 150; requestAnimationFrame(loop);
+        requestAnimationFrame(loop);
     };
 </script>
 </body>
 </html>
-
